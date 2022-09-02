@@ -13,6 +13,7 @@ from tkinterdnd2 import DND_FILES, Tk
 from PyInstaller.utils.hooks import collect_data_files, eval_statement
 #from PyInstaller.utils.hooks import collect_data_files, eval_statement
 
+from tkinterdnd2 import DND_FILES, TkinterDnD
 from file_structure.utils.common_functions import to_int
 from utils.functions import resource_path
 
@@ -20,6 +21,7 @@ datas = collect_data_files('tkinterdnd2')
 #datas = collect_data_files('tkinterdnd2')
 
 class Gui(Tk):
+class Gui(TkinterDnD.Tk):
     def __init__(self):
         super().__init__()
         self.appname = 'Skin Boot Assigner'
