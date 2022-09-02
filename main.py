@@ -1,4 +1,3 @@
-from email import message
 import struct
 from tkinter import messagebox, ttk, StringVar, Entry, Listbox, Menu, filedialog
 from PIL import Image, ImageDraw, ImageTk
