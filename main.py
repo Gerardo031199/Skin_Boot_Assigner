@@ -1,4 +1,3 @@
-from email import message
 import struct
 from tkinter import messagebox, ttk, StringVar, Entry, Listbox, Menu, filedialog
 from PIL import Image, ImageDraw, ImageTk
@@ -12,11 +11,13 @@ from file_structure.image import PESImage, PNGImage, PNG_TO_TEX
 # Fix for tkinterdnd2
 from tkinterdnd2 import DND_FILES, Tk
 from PyInstaller.utils.hooks import collect_data_files, eval_statement
+#from PyInstaller.utils.hooks import collect_data_files, eval_statement
 
 from file_structure.utils.common_functions import to_int
 from utils.functions import resource_path
 
 datas = collect_data_files('tkinterdnd2')
+#datas = collect_data_files('tkinterdnd2')
 
 class Gui(Tk):
     def __init__(self):
