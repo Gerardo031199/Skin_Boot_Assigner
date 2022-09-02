@@ -4,23 +4,12 @@ from PIL import Image, ImageDraw, ImageTk
 from io import BytesIO
 import os
 import imagequant
-
 from file_structure import Container, unzlib_it, file_read, zlib_it, bytes_size, openBaseModel
 from file_structure.image import PESImage, PNGImage, PNG_TO_TEX
-
-# Fix for tkinterdnd2
-from tkinterdnd2 import DND_FILES, Tk
-from PyInstaller.utils.hooks import collect_data_files, eval_statement
-#from PyInstaller.utils.hooks import collect_data_files, eval_statement
-
 from tkinterdnd2 import DND_FILES, TkinterDnD
 from file_structure.utils.common_functions import to_int
 from utils.functions import resource_path
 
-datas = collect_data_files('tkinterdnd2')
-#datas = collect_data_files('tkinterdnd2')
-
-class Gui(Tk):
 class Gui(TkinterDnD.Tk):
     def __init__(self):
         super().__init__()
@@ -73,11 +62,6 @@ class Gui(TkinterDnD.Tk):
         self.my_menu.add_cascade(label="Edit", menu=self.edit_menu)
         self.edit_menu.add_command(label="Clear file listbox", command=lambda : self.clear_listbox(), state="disabled")
         self.edit_menu.add_command(label="Fix all files", command=lambda : self.batch_process(), state="disabled")
-        #self.edit_submenu = Menu(self.my_menu, tearoff=0)
-        # Dinamically loading game versions as sub menu
-        #for i in range(len(self.my_config.games_config)):
-        #    self.edit_submenu.add_command(label=self.my_config.games_config[i],command= lambda i=i: self.change_config(self.my_config.filelist[i]))
-        #self.edit_menu.add_cascade(label="Game Version", menu=self.edit_submenu)
 
         self.my_menu.add_cascade(label="Help", menu=self.help_menu)
         self.help_menu.add_command(label="Manual", command=None)
@@ -87,7 +71,6 @@ class Gui(TkinterDnD.Tk):
         folder = filedialog.askdirectory(title="Select folder", initialdir=".", parent=self)
         if folder == '':
             return 0
-        #print(folder)
 
         for file in os.listdir(folder):
             if (file.endswith('.bin') or file.endswith('.str')) and folder+'/'+file not in self.file_list:
@@ -152,7 +135,7 @@ class Gui(TkinterDnD.Tk):
         decompress_bin_file = unzlib_it(bin_file[32:])
         return self.get_container(decompress_bin_file).files[1] if self.is_hair(self.get_container(decompress_bin_file).files) else self.get_container(decompress_bin_file).files[-1]
 
-    def drop(self, event):
+    def drop(self, event:TkinterDnD.DnDEvent):
         file_path_returneds = list(self.tk.splitlist(event.data))
 
         #paths = [os.path.basename(w) 
@@ -167,7 +150,7 @@ class Gui(TkinterDnD.Tk):
             item_id = self.lbox_items.curselection()[0]
             self.set_item_info(item_id)
 
-    def set_item_info(self, item_id):
+    def set_item_info(self, item_id:int):
         file_path = self.file_list[item_id]
 
         path_bn_str = StringVar()
@@ -188,7 +171,7 @@ class Gui(TkinterDnD.Tk):
         self.btn_import['state'] = "NORMAL"
         self.btn_fix['state'] = "NORMAL"
     
-    def fix_uv(self, file_path):
+    def fix_uv(self, file_path:str):
         pes_image = PESImage()
         pes_image.from_bytes(self.get_pes_texture(file_path))
         pes_image.bgr_to_bgri()
