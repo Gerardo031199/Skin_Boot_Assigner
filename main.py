@@ -58,6 +58,7 @@ class Gui(TkinterDnD.Tk):
         self.file_menu.add_command(label="Save", state='disabled',command=None)
         self.file_menu.add_command(label="Save as...", state='disabled', command=None)
         self.file_menu.add_command(label="Exit", command= None)
+        self.file_menu.add_command(label="Exit", command= lambda : self.destroy())
 
         self.my_menu.add_cascade(label="Edit", menu=self.edit_menu)
         self.edit_menu.add_command(label="Clear file listbox", command=lambda : self.clear_listbox(), state="disabled")
