@@ -41,8 +41,8 @@ class Gui(TkinterDnD.Tk):
         self.btn_import = ttk.Button(
             self, 
             text="Import Texture", 
-            command = lambda: self.import_boot_texture()
-            state='disable'
+            command = lambda: self.import_boot_texture(),
+            state='disable',
         )
         self.btn_import.grid(column=1, row=1, padx=10, pady=10, sticky="WE")  
 
