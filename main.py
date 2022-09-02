@@ -1,3 +1,4 @@
+from email import message
 import struct
 from tkinter import messagebox, ttk, StringVar, Entry, Listbox, Menu, filedialog
 from PIL import Image, ImageDraw, ImageTk
@@ -37,10 +38,25 @@ class Gui(TkinterDnD.Tk):
         self.label_img = ttk.Label(self, image=self.imgtk)
         self.label_img.grid(column=1, row=0, columnspan=2, padx=10, pady=10, sticky="WE")
 
-        self.btn_import = ttk.Button(self, text="Import Texture", command=None, state='disable')
+        self.btn_import = ttk.Button(
+            self, 
+            text="Import Texture", 
+            command = lambda: self.import_boot_texture()
+            state='disable'
+        )
         self.btn_import.grid(column=1, row=1, padx=10, pady=10, sticky="WE")  
 
-        self.btn_fix = ttk.Button(self, text="Fix UV", command= lambda : self.fix_uv(self.file_list[self.lbox_items.curselection()[0]]), state='disable')
+        self.btn_fix = ttk.Button(
+            self, 
+            text="Fix UV", 
+            command= 
+            lambda : self.fix_uv(
+                self.file_list[
+                    self.lbox_items.curselection()[0]
+                ]
+            ),
+            state='disable'
+        )
         self.btn_fix.grid(column=2, row=1, padx=10, pady=10, sticky="WE")
         
         self.input_files = Entry(self,background="#f0f0f0", state="readonly")
@@ -55,9 +71,6 @@ class Gui(TkinterDnD.Tk):
 
         self.my_menu.add_cascade(label="File", menu=self.file_menu)
         self.file_menu.add_command(label="Open folder", command=lambda : self.open_folder())
-        self.file_menu.add_command(label="Save", state='disabled',command=None)
-        self.file_menu.add_command(label="Save as...", state='disabled', command=None)
-        self.file_menu.add_command(label="Exit", command= None)
         self.file_menu.add_command(label="Exit", command= lambda : self.destroy())
 
         self.my_menu.add_cascade(label="Edit", menu=self.edit_menu)
@@ -304,6 +317,51 @@ class Gui(TkinterDnD.Tk):
         with open(file_path, "wb") as f:
             f.write(bin_header)
             f.write(bin_data_zlib)
+
+    def import_boot_texture(self):
+        filetypes = [
+            ("Png Image", ".png"),
+            ('All files', '*.*'),
+        ]
+
+        filename = filedialog.askopenfilename(
+            title=f'{self.appname} Select your boot texture',
+            initialdir='.',
+            filetypes=filetypes)
+        if filename == "":
+            return 0
+        
+        # we create an empty image first
+        boot_canvas = Image.new(mode="RGBA", size=(128, 128), color=(255, 255, 255,0))
+        #boot_canvas.save("./test/bcanvas.png")
+        new_boot_texture = Image.open(filename)
+        
+        # check if its a valid boot texture
+        if new_boot_texture.size != (128,64):
+            messagebox.showerror(title=self.appname, message="Texture size error, must be 128x64")
+            return 0
+        new_boot_texture = new_boot_texture.convert("RGBA")
+
+        item_id = self.lbox_items.curselection()[0]
+        file_path = self.file_list[item_id]
+        pes_image = PESImage()
+        pes_image.from_bytes(self.get_pes_texture(file_path))
+        pes_image.bgr_to_bgri()
+        png_image = PNGImage()
+        png_image.png_from_pes_img(pes_image)
+        hair_texture = Image.open(BytesIO(png_image.png))
+        hair_texture = hair_texture.crop((0, 0, 128, 64))
+        #hair_texture.save("./test/hair_txs.png")
+        boot_canvas.paste(hair_texture, (0,0))
+        boot_canvas.save("./test/bcanvas_with_hair.png")
+        boot_canvas.paste(new_boot_texture, (0,64))
+        boot_canvas.save("./test/bcanvas_with_boot.png")
+        
+        # left to do the code to import the texture into the bin file
+
+
+
+
 
     def start(self):
         self.mainloop()
