@@ -1,0 +1,4 @@
+imagequant==1.0.3
+Pillow==9.2.0
+PyInstaller==5.3
+tkinterdnd2==0.3.0
