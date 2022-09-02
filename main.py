@@ -317,6 +317,9 @@ class Gui(TkinterDnD.Tk):
             f.write(bin_header)
             f.write(bin_data_zlib)
 
+        self.lbox_items.select_set(self.file_list.index(file_path))
+        self.lbox_items.event_generate('<<ListboxSelect>>')
+
     def import_boot_texture(self):
         filetypes = [
             ("Png Image", ".png"),
