@@ -1,11 +1,10 @@
 import struct
 from tkinter import messagebox, ttk, StringVar, Entry, Listbox, Menu, filedialog
-from xmlrpc.client import boolean
 from PIL import Image, ImageDraw, ImageTk
 from io import BytesIO
 import os
 import imagequant
-from file_structure import Container, unzlib_it, file_read, zlib_it, bytes_size, openBaseModel
+from file_structure import Container, unzlib_it, file_read, zlib_it, bytes_size
 from file_structure.image import PESImage, PNGImage, PNG_TO_TEX
 from tkinterdnd2 import DND_FILES, TkinterDnD
 from file_structure.utils.common_functions import to_int
@@ -50,7 +49,7 @@ class Gui(TkinterDnD.Tk):
             self, 
             text="Fix UV", 
             command= 
-            lambda : self.fix_uv(
+            lambda : self.on_click_on_fix_uv_btn(
                 self.file_list[
                     self.lbox_items.curselection()[0]
                 ]
@@ -94,7 +93,7 @@ class Gui(TkinterDnD.Tk):
 
     def batch_process(self):
         for file in self.file_list:
-            self.fix_uv(file)
+            self.on_click_on_fix_uv_btn(file)
         messagebox.showinfo(title=self.appname, message='All files fixed! :)')
 
     def update_file_menu(self, flag):
@@ -137,7 +136,6 @@ class Gui(TkinterDnD.Tk):
     def get_container(self, unzlibed_file:bytearray):
         return Container(unzlibed_file)
 
-
     def is_hair(self, list_of_files:list):
         if len(list_of_files) == 3:
             return PESImage.PES_IMAGE_SIGNATURE == list_of_files[1][:4]
@@ -151,8 +149,6 @@ class Gui(TkinterDnD.Tk):
 
     def drop(self, event:TkinterDnD.DnDEvent):
         file_path_returneds = list(self.tk.splitlist(event.data))
-
-        #paths = [os.path.basename(w) 
         for file in file_path_returneds:
             if file not in self.file_list:
                 self.file_list.append(file)
@@ -184,56 +180,8 @@ class Gui(TkinterDnD.Tk):
 
         self.btn_import['state'] = "NORMAL"
         self.btn_fix['state'] = "NORMAL"
-    
-    def fix_uv(self, file_path:str):
-        pes_image = PESImage()
-        pes_image.from_bytes(self.get_pes_texture(file_path))
-        pes_image.bgr_to_bgri()
 
-        png_image = PNGImage()
-        png_image.png_from_pes_img(pes_image)
-
-        img = Image.open(resource_path('resource.png'))
-        img1_copy = img.copy() 
-
-        output0 = BytesIO()
-        img_bytes = Image.open(BytesIO(png_image.png))
-        img_bytes = img_bytes.resize((128,64))
-        #new_img.save('file_128x64.png')
-        img_bytes.save(output0, 'PNG') 
-
-        img2_copy = img_bytes.copy() 
-        img1_copy.paste(img2_copy,(0, 0)) 
-        #resource_img_copy.save('pasted2.png') 
-        
-        output1 = BytesIO()
-        new_img1 = imagequant.quantize_pil_image(img1_copy, dithering_level=1.0, max_colors=256)
-        new_img1.save(output1, 'PNG') 
-        output1_content = bytearray(output1.getvalue())
-        #new_img1.save("128_x_128.png")
-        output1.close()
-
-        output2 = BytesIO()
-        new_img2 = new_img1.resize((64,64))
-        new_img2 = imagequant.quantize_pil_image(new_img2, dithering_level=1.0, max_colors=256)
-        new_img2.save(output2, 'PNG') 
-        output2_content = bytearray(output2.getvalue())
-        #new_img2.save("64_x_64.png")
-        output2.close()
-        bin_file = file_read(file_path)
-        
-        bin_header = bin_file[:32]
-
-        decompress_bin_file = unzlib_it(bin_file[32:])
-
-        file_temp = BytesIO()
-        file_temp.write(decompress_bin_file)
-
-        file_ctn = self.get_container(decompress_bin_file)
-        
-        valid_textures_list = [0x64, 0x6F, 0x72]
-        
-        mdl = BytesIO(file_ctn.files[0])
+    def ps2_mdl_write_uv_list(self, mdl:BytesIO, uv_list:list, valid_textures_list:list):
         mdl.seek(32, 0)
         total_parts = struct.unpack("<I", mdl.read(4))[0]
         #print("total parts in this model are: ", total_parts)
@@ -254,8 +202,89 @@ class Gui(TkinterDnD.Tk):
             )
             if txs_id in valid_textures_list
         ]
+        #vertex_factor = 0.001953
+        i = 0
+        vertex_count = 0
+        while i < total_parts:
+            #print("part ",i, " offset: ", part_start_offset)
+            mdl.seek(part_start_offset,0)
+            part_size = struct.unpack("<I", mdl.read(4))[0]
+
+            #print("part #", i)
+            mdl.seek(4,1)
+            part_info_start = struct.unpack("<I", mdl.read(4))[0]
+            mdl.seek(part_start_offset + 52,0)
+            txs_id =  struct.unpack("<I", mdl.read(4))[0]
+            #print("this part use texture id: ", txs_id)
+
+            mdl.seek(part_start_offset+part_info_start+88,0)
+            
+
+            vertex_in_piece = struct.unpack("<H", mdl.read(2))[0]
+
+            if txs_id in valid_textures_indexes:
+
+            
+                mdl.seek(10,1)
+                
+                mdl.seek(vertex_in_piece*6,1)
+
+                #"""
+                if vertex_in_piece%2!=0:
+                    # if the number of vertes is not pair then we need to incress the movement of bytes by two
+                    mdl.seek(2,1)
+                mdl.seek(4,1)
+                mdl.seek(vertex_in_piece*6,1)
+                
+                if vertex_in_piece%2!=0:
+                    # if the number of vertes is not pair then we need to incress the movement of bytes by two
+                    mdl.seek(2,1)
+                    
+                mdl.seek(4,1)
+                factor_uv = 0.000244140625
+                for j in range(vertex_in_piece):
+                    v,t = round(uv_list[vertex_count + j][0]/factor_uv), round((1 - uv_list[vertex_count + j][1]) / factor_uv)
+                    mdl.write(struct.pack("<h", v))
+                    mdl.write(struct.pack("<h",t))
+                vertex_count += vertex_in_piece
+
+                #print(i)
+                #if i == 0:
+                    #print("Saliendo del loop")
+                    #break  
+            
+            part_start_offset += part_size
+            i += 1
+            #"""
+            #with open('file.bin','wb') as file:
+            #    mdl.seek(0,0)
+            #    file.write(mdl.read())
+        mdl.seek(0,0)
+        return mdl.read()
+
+    def ps2_mdl_read_uv_list(self, mdl:BytesIO, valid_textures_list:list):
+
+        mdl.seek(32, 0)
+        total_parts = struct.unpack("<I", mdl.read(4))[0]
+        #print("total parts in this model are: ", total_parts)
+        part_start_offset = struct.unpack("<I", mdl.read(4))[0]
+        mdl.seek(56, 0)
+        total_txs =  struct.unpack("<I", mdl.read(4))[0]
+        txs_mapping_start =  struct.unpack("<I", mdl.read(4))[0]
+        mdl.seek(txs_mapping_start, 0)
+        #print("texture mapping on this model")
         
-        
+        valid_textures_indexes = [
+            i 
+            for i, txs_id in enumerate(
+                struct.unpack(
+                    f"{total_txs}I",
+                    mdl.read(total_txs * 4)
+                )
+            )
+            if txs_id in valid_textures_list
+        ]
+
         i = 0
         vertex_in_part_offset = 88
         uvlist = []
@@ -285,44 +314,74 @@ class Gui(TkinterDnD.Tk):
                 if vertex_in_piece % 2 != 0:
                     mdl.read(2)
                 mdl.read(4)
-                for j in range(vertex_in_piece):
-                    u,v = struct.unpack("<hh", mdl.read(4))
-                    uvlist.append((u * factor_uv, 1 - v * factor_uv * 0.5))
+                # lectura de uv
+                j = 0
+                while j < vertex_in_piece:
+                    u, v = struct.unpack("<hh", mdl.read(4))
+                    uvlist.append((u * factor_uv, 1 - v * factor_uv))
+                    j += 1
             part_start_offset += part_size
             i += 1
+        return uvlist
 
-        bin_data_uncompress = bytearray(openBaseModel(file_temp, uvlist))
-        
-        offset_tex1 = to_int(bin_data_uncompress[12:14])
-        offset_tex2 = to_int(bin_data_uncompress[16:18])
+    def on_click_on_fix_uv_btn(self, file_path:str):
+        bin_file = file_read(file_path)
+        bin_header = bin_file[:32]
+        decompress_bin_file = unzlib_it(bin_file[32:])
+        file_ctn = self.get_container(decompress_bin_file)
 
-        pes_img1 = PNG_TO_TEX()
-        pes_img1.from_png(output1_content)
-        
-        pes_img2 = PNG_TO_TEX()
-        pes_img2.from_png(output2_content)
+        valid_textures_list = [0x64, 0x6F, 0x72]
 
-        bin_data_uncompress[offset_tex1+128:offset_tex2] = pes_img1.pes_palette + pes_img1.pes_idat
-        
-        bin_data_uncompress[offset_tex2+128:] = pes_img2.pes_idat
+        mdl = BytesIO(file_ctn.files[0])
+        hair_texture_bytes = file_ctn.files[1]
 
-        bin_data_zlib = zlib_it(bin_data_uncompress, 9)
-        
+        # empezamos la correccion de la imagen
+        default_boot_texture = Image.open(resource_path('resource.png'))
+
+        hair_image = self.get_image_from_pes_bytes(hair_texture_bytes)
+        hair_image = hair_image.resize((128, 64))
+        default_boot_texture.paste(hair_image)
+
+        ############
+        uvlist = self.ps2_mdl_read_uv_list(mdl, valid_textures_list)
+        uvlist = self.fix_uv(uvlist, 1, 0.5)
+
+        # importamos el uv modificado al bytesio y lo recibimos en bytes para luego escribirlo
+        mdl_bytes = self.ps2_mdl_write_uv_list(mdl, uvlist, valid_textures_list)
+
+        offset_mdl =  to_int(decompress_bin_file[8:12])
+        offset_tex1 = to_int(decompress_bin_file[12:16])
+        offset_tex2 = to_int(decompress_bin_file[16:20])
+
+        # escribimos los bytes del mdl en el archivo descomprimido
+        decompress_bin_file[offset_mdl: offset_tex1] = mdl_bytes
+        # importamos la primer imagen
+        decompress_bin_file = self.import_img_to_bin(decompress_bin_file, default_boot_texture, 256, offset_tex1, False, True, True)
+
+        #redimensionamos la primer imagen e importamos solos los bytes de los pixeles
+        default_boot_texture_2 = default_boot_texture.resize((64,64))
+        decompress_bin_file = self.import_img_to_bin(decompress_bin_file, default_boot_texture_2, 256, offset_tex2, False, False, True)
+
+        # Comprimimos nuestro archivo y obtenemos los datos necesarios
+        bin_data_zlib = zlib_it(decompress_bin_file, 9)
         size_compress = bytes_size(bin_data_zlib)
-
-        size_uncompress = bytes_size(bin_data_uncompress)
-
+        size_uncompress = bytes_size(decompress_bin_file)
         bin_header[4:8] = size_compress
-
         bin_header[8:12] = size_uncompress
 
+        # escribimos los datos en memoria a el archivo
         with open(file_path, "wb") as f:
             f.write(bin_header)
             f.write(bin_data_zlib)
 
+        # actualizamos la gui
+        
         self.lbox_items.select_set(self.file_list.index(file_path))
         self.lbox_items.event_generate('<<ListboxSelect>>')
-
+    
+    def fix_uv(self, uv_list:list, u_factor:float, v_factor:float):
+        return [(uv[0] * u_factor, uv[1] * v_factor) for uv in uv_list]
+        
     def import_boot_texture(self):
         filetypes = [
             ("Png Image", ".png"),
@@ -348,69 +407,85 @@ class Gui(TkinterDnD.Tk):
         new_boot_texture = new_boot_texture.convert("RGBA")
 
         item_id = self.lbox_items.curselection()[0]
-        file_path = self.file_list[item_id]
-        pes_image = PESImage()
-        pes_image.from_bytes(self.get_pes_texture(file_path))
-        pes_image.bgr_to_bgri()
-        png_image = PNGImage()
-        png_image.png_from_pes_img(pes_image)
-        hair_texture = Image.open(BytesIO(png_image.png))
-        hair_texture = hair_texture.crop((0, 0, 128, 64))
+        hair_file_path = self.file_list[item_id]
+
+        # Reading file...
+
+        bin_file = file_read(hair_file_path)
+        
+        bin_header = bin_file[:32]
+
+        decompress_bin_file = unzlib_it(bin_file[32:])
+
+        file_ctn = self.get_container(decompress_bin_file)
+        
+        hair_texture_bytes = file_ctn.files[1]
+
+        # converting pes image buffer into python image
+        hair_image = self.get_image_from_pes_bytes(hair_texture_bytes)
+
+        # cropping only the hair texture
+        hair_image = hair_image.crop((0, 0, 128, 64))
         #hair_texture.save("./test/hair_txs.png")
-        boot_canvas.paste(hair_texture, (0,0))
+        
+        # and then merging the new boot texture and hair texture into the canvas
+        
+        boot_canvas.paste(hair_image, (0,0))
         #boot_canvas.save("./test/bcanvas_with_hair.png")
         boot_canvas.paste(new_boot_texture, (0,64))
         #boot_canvas.save("./test/bcanvas_with_boot.png")
 
-        with open(file_path,'r+b') as file:
-            file_content = bytearray(file.read())
-        
-        file_header = file_content[:32]
-        data_uncompress = unzlib_it(file_content[32:])
 
-        offset_tex1 = to_int(data_uncompress[12:14])
-        offset_tex2 = to_int(data_uncompress[16:18])
+        offset_tex1 = to_int(decompress_bin_file[12:16])
+        offset_tex2 = to_int(decompress_bin_file[16:20])
 
-        data_uncompress = self.import_img_to_bin(data_uncompress, boot_canvas, 256, offset_tex1, False, True, True)
-        print("textura 1 importada!")
+        decompress_bin_file = self.import_img_to_bin(decompress_bin_file, boot_canvas, 256, offset_tex1, False, True, True)
+        #print("textura 1 importada!")
    
         boot_canvas2 = boot_canvas.resize((64,64))
 
-        data_uncompress = self.import_img_to_bin(data_uncompress, boot_canvas2, 256, offset_tex2, False, False, True)
-        print("Txtura 2 importda!!")
+        decompress_bin_file = self.import_img_to_bin(decompress_bin_file, boot_canvas2, 256, offset_tex2, False, False, True)
+        #print("Txtura 2 importda!!")
         #return 0
-        bin_data_zlib = zlib_it(data_uncompress, 9)
+        bin_data_zlib = zlib_it(decompress_bin_file, 9)
         
         size_compress = bytes_size(bin_data_zlib)
 
-        size_uncompress = bytes_size(data_uncompress)
+        size_uncompress = bytes_size(decompress_bin_file)
 
-        file_header[4:8] = size_compress
+        bin_header[4:8] = size_compress
 
-        file_header[8:12] = size_uncompress
+        bin_header[8:12] = size_uncompress
 
-        with open(file_path, "wb") as f:
-            f.write(file_header)
+        with open(hair_file_path, "wb") as f:
+            f.write(bin_header)
             f.write(bin_data_zlib)
 
         messagebox.showinfo(title=self.appname, message="Texture boot imported!")
         
-        self.lbox_items.select_set(self.file_list.index(file_path))
+        self.lbox_items.select_set(self.file_list.index(hair_file_path))
         self.lbox_items.event_generate('<<ListboxSelect>>')
 
-    def img_to_bytes(self, img:Image):
+    def get_image_from_pes_bytes(self, pes_bytes:bytearray):
+        pes_image = PESImage()
+        pes_image.from_bytes(pes_bytes)
+        pes_image.bgr_to_bgri()
+        png_image = PNGImage()
+        png_image.png_from_pes_img(pes_image)
+        return Image.open(BytesIO(png_image.png))
+
+    def img_to_bytes(self, img:Image.Image):
         output = BytesIO()
         img.save(output,'PNG')
         output_content = bytearray(output.getvalue())
         output.close()
         return output_content
 
-    def index_img(self, img:Image, colors:int):
+    def index_img(self, img:Image.Image, colors:int):
         return imagequant.quantize_pil_image(img, dithering_level=1.0, max_colors=colors)
 
 
-    def import_img_to_bin(self, data:bytearray, img:Image, colors:int, offset:int, is_indexed:bool, import_palette:bool, import_pixel:bool):
-        print(img.size)
+    def import_img_to_bin(self, data:bytearray, img:Image.Image, colors:int, offset:int, is_indexed:bool, import_palette:bool, import_pixel:bool):
         #return 0
 
         txs_size = to_int(data[offset+8:offset+12])

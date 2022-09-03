@@ -6,7 +6,7 @@ from file_structure import to_signed_bytes
 MODEL_MAGIC_NUMBER = bytearray([0x03, 0x00, 0xFF, 0xFF])
 
 
-def openBaseModel(uncompress_bin_file, vertex_texture_list: list):
+def openBaseModel(uncompress_bin_file: BytesIO, vertex_texture_list: list):
     uncompress_bin_file.seek(0,2)
 
     uncompress_bin_size = uncompress_bin_file.tell()
