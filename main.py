@@ -1,24 +1,16 @@
-from email import message
 import struct
 from tkinter import messagebox, ttk, StringVar, Entry, Listbox, Menu, filedialog
 from PIL import Image, ImageDraw, ImageTk
 from io import BytesIO
 import os
 import imagequant
-
 from file_structure import Container, unzlib_it, file_read, zlib_it, bytes_size, openBaseModel
 from file_structure.image import PESImage, PNGImage, PNG_TO_TEX
-
-# Fix for tkinterdnd2
-from tkinterdnd2 import DND_FILES, Tk
-from PyInstaller.utils.hooks import collect_data_files, eval_statement
-
+from tkinterdnd2 import DND_FILES, TkinterDnD
 from file_structure.utils.common_functions import to_int
 from utils.functions import resource_path
 
-datas = collect_data_files('tkinterdnd2')
-
-class Gui(Tk):
+class Gui(TkinterDnD.Tk):
     def __init__(self):
         super().__init__()
         self.appname = 'Skin Boot Assigner'
@@ -45,10 +37,25 @@ class Gui(Tk):
         self.label_img = ttk.Label(self, image=self.imgtk)
         self.label_img.grid(column=1, row=0, columnspan=2, padx=10, pady=10, sticky="WE")
 
-        self.btn_import = ttk.Button(self, text="Import Texture", command=None, state='disable')
+        self.btn_import = ttk.Button(
+            self, 
+            text="Import Texture", 
+            command = lambda: self.import_boot_texture(),
+            state='disable',
+        )
         self.btn_import.grid(column=1, row=1, padx=10, pady=10, sticky="WE")  
 
-        self.btn_fix = ttk.Button(self, text="Fix UV", command= lambda : self.fix_uv(self.file_list[self.lbox_items.curselection()[0]]), state='disable')
+        self.btn_fix = ttk.Button(
+            self, 
+            text="Fix UV", 
+            command= 
+            lambda : self.fix_uv(
+                self.file_list[
+                    self.lbox_items.curselection()[0]
+                ]
+            ),
+            state='disable'
+        )
         self.btn_fix.grid(column=2, row=1, padx=10, pady=10, sticky="WE")
         
         self.input_files = Entry(self,background="#f0f0f0", state="readonly")
@@ -63,18 +70,11 @@ class Gui(Tk):
 
         self.my_menu.add_cascade(label="File", menu=self.file_menu)
         self.file_menu.add_command(label="Open folder", command=lambda : self.open_folder())
-        self.file_menu.add_command(label="Save", state='disabled',command=None)
-        self.file_menu.add_command(label="Save as...", state='disabled', command=None)
-        self.file_menu.add_command(label="Exit", command= None)
+        self.file_menu.add_command(label="Exit", command= lambda : self.destroy())
 
         self.my_menu.add_cascade(label="Edit", menu=self.edit_menu)
         self.edit_menu.add_command(label="Clear file listbox", command=lambda : self.clear_listbox(), state="disabled")
         self.edit_menu.add_command(label="Fix all files", command=lambda : self.batch_process(), state="disabled")
-        #self.edit_submenu = Menu(self.my_menu, tearoff=0)
-        # Dinamically loading game versions as sub menu
-        #for i in range(len(self.my_config.games_config)):
-        #    self.edit_submenu.add_command(label=self.my_config.games_config[i],command= lambda i=i: self.change_config(self.my_config.filelist[i]))
-        #self.edit_menu.add_cascade(label="Game Version", menu=self.edit_submenu)
 
         self.my_menu.add_cascade(label="Help", menu=self.help_menu)
         self.help_menu.add_command(label="Manual", command=None)
@@ -84,7 +84,6 @@ class Gui(Tk):
         folder = filedialog.askdirectory(title="Select folder", initialdir=".", parent=self)
         if folder == '':
             return 0
-        #print(folder)
 
         for file in os.listdir(folder):
             if (file.endswith('.bin') or file.endswith('.str')) and folder+'/'+file not in self.file_list:
@@ -149,7 +148,7 @@ class Gui(Tk):
         decompress_bin_file = unzlib_it(bin_file[32:])
         return self.get_container(decompress_bin_file).files[1] if self.is_hair(self.get_container(decompress_bin_file).files) else self.get_container(decompress_bin_file).files[-1]
 
-    def drop(self, event):
+    def drop(self, event:TkinterDnD.DnDEvent):
         file_path_returneds = list(self.tk.splitlist(event.data))
 
         #paths = [os.path.basename(w) 
@@ -164,7 +163,7 @@ class Gui(Tk):
             item_id = self.lbox_items.curselection()[0]
             self.set_item_info(item_id)
 
-    def set_item_info(self, item_id):
+    def set_item_info(self, item_id:int):
         file_path = self.file_list[item_id]
 
         path_bn_str = StringVar()
@@ -185,7 +184,7 @@ class Gui(Tk):
         self.btn_import['state'] = "NORMAL"
         self.btn_fix['state'] = "NORMAL"
     
-    def fix_uv(self, file_path):
+    def fix_uv(self, file_path:str):
         pes_image = PESImage()
         pes_image.from_bytes(self.get_pes_texture(file_path))
         pes_image.bgr_to_bgri()
@@ -317,6 +316,54 @@ class Gui(Tk):
         with open(file_path, "wb") as f:
             f.write(bin_header)
             f.write(bin_data_zlib)
+
+        self.lbox_items.select_set(self.file_list.index(file_path))
+        self.lbox_items.event_generate('<<ListboxSelect>>')
+
+    def import_boot_texture(self):
+        filetypes = [
+            ("Png Image", ".png"),
+            ('All files', '*.*'),
+        ]
+
+        filename = filedialog.askopenfilename(
+            title=f'{self.appname} Select your boot texture',
+            initialdir='.',
+            filetypes=filetypes)
+        if filename == "":
+            return 0
+        
+        # we create an empty image first
+        boot_canvas = Image.new(mode="RGBA", size=(128, 128), color=(255, 255, 255,0))
+        #boot_canvas.save("./test/bcanvas.png")
+        new_boot_texture = Image.open(filename)
+        
+        # check if its a valid boot texture
+        if new_boot_texture.size != (128,64):
+            messagebox.showerror(title=self.appname, message="Texture size error, must be 128x64")
+            return 0
+        new_boot_texture = new_boot_texture.convert("RGBA")
+
+        item_id = self.lbox_items.curselection()[0]
+        file_path = self.file_list[item_id]
+        pes_image = PESImage()
+        pes_image.from_bytes(self.get_pes_texture(file_path))
+        pes_image.bgr_to_bgri()
+        png_image = PNGImage()
+        png_image.png_from_pes_img(pes_image)
+        hair_texture = Image.open(BytesIO(png_image.png))
+        hair_texture = hair_texture.crop((0, 0, 128, 64))
+        #hair_texture.save("./test/hair_txs.png")
+        boot_canvas.paste(hair_texture, (0,0))
+        boot_canvas.save("./test/bcanvas_with_hair.png")
+        boot_canvas.paste(new_boot_texture, (0,64))
+        boot_canvas.save("./test/bcanvas_with_boot.png")
+        
+        # left to do the code to import the texture into the bin file
+
+
+
+
 
     def start(self):
         self.mainloop()

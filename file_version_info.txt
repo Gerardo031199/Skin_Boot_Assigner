@@ -32,9 +32,9 @@ StringFileInfo(
     [StringStruct(u'CompanyName', u'PES Indie Team'),
     StringStruct(u'FileDescription', u'A simple tool to fix UV Map'),
     StringStruct(u'FileVersion', u'1.0.0'),
-    StringStruct(u'InternalName', u'FIX_UV_MAP'),
+    StringStruct(u'InternalName', u'S_B_MAPPER'),
     StringStruct(u'LegalCopyright', u'Copyright (c) PES Indie Team'),
-    StringStruct(u'OriginalFilename', u'Fix UV Map.exe'),
+    StringStruct(u'OriginalFilename', u'Skin Boot Assigner.exe'),
     StringStruct(u'ProductName', u'Subversion'),
     StringStruct(u'ProductVersion', u'1.0.0 (r220822)')])
   ]), 
