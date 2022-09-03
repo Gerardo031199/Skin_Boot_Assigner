@@ -19,7 +19,7 @@ def bytes_size(data):
     return (len(data)).to_bytes(4, byteorder='little', signed=True)
 
 def unzlib_it(data):
-    return zlib.decompress(data)
+    return bytearray(zlib.decompress(data))
 
 def zlib_it(data,compression):
     return zlib.compress(data,compression)

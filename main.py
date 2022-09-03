@@ -1,5 +1,6 @@
 import struct
 from tkinter import messagebox, ttk, StringVar, Entry, Listbox, Menu, filedialog
+from xmlrpc.client import boolean
 from PIL import Image, ImageDraw, ImageTk
 from io import BytesIO
 import os
@@ -210,6 +211,7 @@ class Gui(TkinterDnD.Tk):
         new_img1.save(output1, 'PNG') 
         output1_content = bytearray(output1.getvalue())
         #new_img1.save("128_x_128.png")
+        output1.close()
 
         output2 = BytesIO()
         new_img2 = new_img1.resize((64,64))
@@ -217,6 +219,7 @@ class Gui(TkinterDnD.Tk):
         new_img2.save(output2, 'PNG') 
         output2_content = bytearray(output2.getvalue())
         #new_img2.save("64_x_64.png")
+        output2.close()
         bin_file = file_read(file_path)
         
         bin_header = bin_file[:32]
@@ -290,8 +293,8 @@ class Gui(TkinterDnD.Tk):
 
         bin_data_uncompress = bytearray(openBaseModel(file_temp, uvlist))
         
-        offset_tex1 =  to_int(bin_data_uncompress[12:14])
-        offset_tex2 =  to_int(bin_data_uncompress[16:18])
+        offset_tex1 = to_int(bin_data_uncompress[12:14])
+        offset_tex2 = to_int(bin_data_uncompress[16:18])
 
         pes_img1 = PNG_TO_TEX()
         pes_img1.from_png(output1_content)
@@ -355,15 +358,102 @@ class Gui(TkinterDnD.Tk):
         hair_texture = hair_texture.crop((0, 0, 128, 64))
         #hair_texture.save("./test/hair_txs.png")
         boot_canvas.paste(hair_texture, (0,0))
-        boot_canvas.save("./test/bcanvas_with_hair.png")
+        #boot_canvas.save("./test/bcanvas_with_hair.png")
         boot_canvas.paste(new_boot_texture, (0,64))
-        boot_canvas.save("./test/bcanvas_with_boot.png")
+        #boot_canvas.save("./test/bcanvas_with_boot.png")
+
+        with open(file_path,'r+b') as file:
+            file_content = bytearray(file.read())
         
-        # left to do the code to import the texture into the bin file
+        file_header = file_content[:32]
+        data_uncompress = unzlib_it(file_content[32:])
+
+        offset_tex1 = to_int(data_uncompress[12:14])
+        offset_tex2 = to_int(data_uncompress[16:18])
+
+        data_uncompress = self.import_img_to_bin(data_uncompress, boot_canvas, 256, offset_tex1, False, True, True)
+        print("textura 1 importada!")
+   
+        boot_canvas2 = boot_canvas.resize((64,64))
+
+        data_uncompress = self.import_img_to_bin(data_uncompress, boot_canvas2, 256, offset_tex2, False, False, True)
+        print("Txtura 2 importda!!")
+        #return 0
+        bin_data_zlib = zlib_it(data_uncompress, 9)
+        
+        size_compress = bytes_size(bin_data_zlib)
+
+        size_uncompress = bytes_size(data_uncompress)
+
+        file_header[4:8] = size_compress
+
+        file_header[8:12] = size_uncompress
+
+        with open(file_path, "wb") as f:
+            f.write(file_header)
+            f.write(bin_data_zlib)
+
+        messagebox.showinfo(title=self.appname, message="Texture boot imported!")
+        
+        self.lbox_items.select_set(self.file_list.index(file_path))
+        self.lbox_items.event_generate('<<ListboxSelect>>')
+
+    def img_to_bytes(self, img:Image):
+        output = BytesIO()
+        img.save(output,'PNG')
+        output_content = bytearray(output.getvalue())
+        output.close()
+        return output_content
+
+    def index_img(self, img:Image, colors:int):
+        return imagequant.quantize_pil_image(img, dithering_level=1.0, max_colors=colors)
 
 
+    def import_img_to_bin(self, data:bytearray, img:Image, colors:int, offset:int, is_indexed:bool, import_palette:bool, import_pixel:bool):
+        print(img.size)
+        #return 0
 
+        txs_size = to_int(data[offset+8:offset+12])
 
+        pixel_offset = to_int(data[offset+16:offset+18])
+
+        palette_offset = to_int(data[offset+18:offset+20])
+        
+        width = to_int(data[offset+20:offset+22])
+        
+        heigth = to_int(data[offset+22:offset+24])
+
+        bitmap = to_int(data[offset+48:offset+50])
+
+        if not is_indexed:
+            img = self.index_img(img, colors)
+        
+        img_bytes = self.img_to_bytes(img)
+
+        pes_img1 = PNG_TO_TEX()
+        pes_img1.from_png(img_bytes)
+
+        if pes_img1.width != width and pes_img1.height != heigth:
+            messagebox.showerror(title=self.appname, message="The sizes is not valid, image not imported")
+            return data
+        
+        if import_palette:
+            data[offset + palette_offset : pixel_offset + offset] = pes_img1.pes_palette
+        
+        if import_pixel:
+            data[offset + pixel_offset : txs_size + offset] = pes_img1.pes_idat
+
+        if bitmap != 0:
+            img2 = img.resize((int(width/2),int(heigth/2)))
+        
+            img2_bytes = self.img_to_bytes(img2)
+
+            pes_img2 = PNG_TO_TEX()
+            pes_img2.from_png(img2_bytes)
+
+            data[offset + txs_size : offset + len(pes_img2.pes_idat)] = pes_img2.pes_idat
+
+        return data
 
     def start(self):
         self.mainloop()
