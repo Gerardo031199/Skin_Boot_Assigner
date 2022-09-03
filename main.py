@@ -1,6 +1,5 @@
 import struct
 from tkinter import messagebox, ttk, StringVar, Entry, Listbox, Menu, filedialog
-from xmlrpc.client import boolean
 from PIL import Image, ImageDraw, ImageTk
 from io import BytesIO
 import os
