@@ -19,6 +19,7 @@ class Gui(TkinterDnD.Tk):
         self.title(self.appname+' '+self.version)
         self.resizable(False, False)
         self.attributes("-topmost", True)
+        self.iconbitmap(default=resource_path("pes_indie.ico"))
         self._make_file_menu()
         self.file_list = []
 
