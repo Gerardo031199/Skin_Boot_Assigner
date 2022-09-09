@@ -318,7 +318,7 @@ class Gui(TkinterDnD.Tk):
                 j = 0
                 while j < vertex_in_piece:
                     u, v = struct.unpack("<hh", mdl.read(4))
-                    uvlist.append((u * factor_uv, 1 - v * factor_uv))
+                    uvlist.append((u * factor_uv, 1 - (v * factor_uv)))
                     j += 1
             part_start_offset += part_size
             i += 1
@@ -344,8 +344,8 @@ class Gui(TkinterDnD.Tk):
 
         ############
         uvlist = self.ps2_mdl_read_uv_list(mdl, valid_textures_list)
-        uvlist = self.fix_uv(uvlist, 1, 0.5)
-
+        uvlist = self.multiply_uv(uvlist, 1, 0.5)
+        uvlist = self.add_uv(uvlist, 0, 0.5)
         # importamos el uv modificado al bytesio y lo recibimos en bytes para luego escribirlo
         mdl_bytes = self.ps2_mdl_write_uv_list(mdl, uvlist, valid_textures_list)
 
@@ -379,9 +379,15 @@ class Gui(TkinterDnD.Tk):
         self.lbox_items.select_set(self.file_list.index(file_path))
         self.lbox_items.event_generate('<<ListboxSelect>>')
     
-    def fix_uv(self, uv_list:list, u_factor:float, v_factor:float):
+    def multiply_uv(self, uv_list:list, u_factor:float, v_factor:float):
         return [(uv[0] * u_factor, uv[1] * v_factor) for uv in uv_list]
         
+    def add_uv(self, uv_list:list, u_factor:float, v_factor:float):
+        return [(uv[0] + u_factor, uv[1] + v_factor) for uv in uv_list]
+
+    def minus_uv(self, uv_list:list, u_factor:float, v_factor:float):
+        return [(uv[0] - u_factor, uv[1] - v_factor) for uv in uv_list]
+
     def import_boot_texture(self):
         filetypes = [
             ("Png Image", ".png"),
